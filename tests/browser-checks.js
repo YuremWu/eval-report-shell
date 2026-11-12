@@ -29,6 +29,25 @@ window.checkEvalReport = async function () {
   check('one donut', document.querySelectorAll('.donut').length === 1);
   check('mismatched quote is not marked', ![...document.querySelectorAll('mark')].some(n => n.textContent === 'Fabricated quote'));
   check('mismatch is disclosed', document.querySelector('.miss')?.textContent.includes('Fabricated quote'));
+  const yellowArc = document.querySelector('.donut [data-preview="unknown"]');
+  yellowArc.dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'}));
+  check('donut hover does not switch preview', panel.querySelector('h3').textContent.includes('A1'));
+  yellowArc.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+  check('yellow click selects entire batch', panel.querySelector('h3').textContent.startsWith('整批 · 無法判定'));
+  yellowArc.dispatchEvent(new PointerEvent('pointerleave', {pointerType: 'mouse'}));
+  for (const arc of document.querySelectorAll('.donut [data-preview]')) {
+    arc.dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'}));
+    arc.dispatchEvent(new PointerEvent('pointerleave', {pointerType: 'mouse'}));
+  }
+  green.dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'}));
+  await new Promise(resolve => setTimeout(resolve, 300));
+  check('crossing red green and leaving keeps yellow pinned', !panel.hidden && panel.querySelector('h3').textContent.startsWith('整批 · 無法判定'));
+  document.querySelector('.donut [data-preview="failed"]').dispatchEvent(new MouseEvent('click', {bubbles: true}));
+  check('explicit click switches pinned panel', panel.querySelector('h3').textContent.startsWith('整批 · 不通過'));
+  document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  check('outside click closes pinned panel', panel.hidden);
+  green.dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'}));
+  check('bars hover again after dismissal', !panel.hidden && panel.querySelectorAll('.preview').length === 3);
   const b = panel.getBoundingClientRect();
   check('panel stays inside viewport', b.left >= 0 && b.right <= innerWidth && b.top >= 0 && b.bottom <= innerHeight);
   return results;

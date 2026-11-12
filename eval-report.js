@@ -109,12 +109,12 @@
   };
 
   function previewPanel(root, data) {
-    let trigger, timer;
+    let trigger, timer, pinned = false;
     const panel = el("div", { class: "panel", id: "eval-preview", role: "dialog", "aria-label": "結果預覽", hidden: "" });
     root.append(panel);
     const cancel = () => clearTimeout(timer);
-    const hide = () => { cancel(); panel.hidden = true; trigger?.setAttribute("aria-expanded", "false"); };
-    const later = () => { cancel(); timer = setTimeout(hide, 250); };
+    const hide = () => { cancel(); pinned = false; panel.hidden = true; trigger?.setAttribute("aria-expanded", "false"); };
+    const later = () => { cancel(); if (!pinned) timer = setTimeout(hide, 250); };
     const evidenceLink = (run, turn) => el("a", {
       href: "#" + (turn ? `${slug(run.run_id)}-turn-${turn}` : slug(run.run_id)),
       text: turn ? `查看第 ${turn} 輪 →` : "查看對話 →",
@@ -171,7 +171,7 @@
     document.addEventListener("keydown", e => { if (e.key === "Escape" && !panel.hidden) { hide(); trigger?.focus(); hide(); } });
     document.addEventListener("pointerdown", e => { if (!panel.contains(e.target) && !e.target.closest("[data-preview]")) hide(); });
     window.addEventListener("resize", hide);
-    return (node, status, group, count) => {
+    return (node, status, group, count, clickOnly = false) => {
       node.setAttribute("data-preview", status);
       node.setAttribute("tabindex", "0");
       node.setAttribute("role", "button");
@@ -180,13 +180,13 @@
       node.setAttribute("aria-controls", panel.id);
       node.setAttribute("aria-expanded", "false");
       const open = () => show(node, status, group, count);
-      node.addEventListener("pointerenter", e => { if (e.pointerType !== "touch") open(); });
+      node.addEventListener("pointerenter", e => { if (!clickOnly && !pinned && e.pointerType !== "touch") open(); });
       node.addEventListener("pointerleave", later);
-      node.addEventListener("focus", open);
+      node.addEventListener("focus", () => { if (!clickOnly && !pinned) open(); });
       node.addEventListener("blur", e => { if (!panel.contains(e.relatedTarget)) later(); });
-      node.addEventListener("click", open);
+      node.addEventListener("click", () => { pinned = clickOnly; open(); });
       node.addEventListener("keydown", e => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); panel.querySelector("button").focus(); }
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pinned = clickOnly; open(); panel.querySelector("button").focus(); }
         if (e.key === "Tab" && !e.shiftKey && !panel.hidden) { e.preventDefault(); panel.querySelector("button").focus(); }
       });
       return node;
@@ -203,7 +203,7 @@
       if (!p.n) continue;
       const len = (p.n / total) * c;
       svg.append(bindPreview(el("circle", { cx: 66, cy: 66, r, fill: "none", stroke: p.color, "stroke-width": 14,
-        "stroke-dasharray": `${Math.max(len - 2, 0)} ${c}`, "stroke-dashoffset": -offset }), p.status, "", p.n));
+        "stroke-dasharray": `${Math.max(len - 2, 0)} ${c}`, "stroke-dashoffset": -offset }), p.status, "", p.n, true));
       offset += len;
     }
     return svg;
