@@ -44,7 +44,7 @@ window.checkEvalReport = async function () {
   check('crossing red green and leaving keeps yellow pinned', !panel.hidden && panel.querySelector('h3').textContent.startsWith('整批 · 無法判定'));
   document.querySelector('.donut [data-preview="failed"]').dispatchEvent(new MouseEvent('click', {bubbles: true}));
   check('explicit click switches pinned panel', panel.querySelector('h3').textContent.startsWith('整批 · 不通過'));
-  document.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  document.body.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
   check('outside click closes pinned panel', panel.hidden);
   green.dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'}));
   check('bars hover again after dismissal', !panel.hidden && panel.querySelectorAll('.preview').length === 3);
