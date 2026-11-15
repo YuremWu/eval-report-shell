@@ -2,8 +2,10 @@
   // Layer 1 is numbers and bars only. Reasons and dialogue live in the sheet a click opens.
   // Status hues pass the palette validator on light and dark surfaces; every status also has a label.
   const css = `
-  :root{--er-pass:#2a9d78;--er-fail:#c8434f;--er-warn:#b98a10}
-  .er{--ink:var(--foreground,#1d2026);--mute:color-mix(in srgb,var(--ink) 58%,transparent);
+  :root{color-scheme:light dark;--er-pass:#2a9d78;--er-fail:#c8434f;--er-warn:#b98a10;--er-bg:#fff;--er-ink:#1d2026}
+  @media (prefers-color-scheme:dark){:root{--er-bg:#17191e;--er-ink:#e7e9ee}}
+  html,body{margin:0;background:var(--background,var(--er-bg));color:var(--foreground,var(--er-ink))}
+  .er{--ink:var(--foreground,var(--er-ink));--mute:color-mix(in srgb,var(--ink) 58%,transparent);
     --line:color-mix(in srgb,var(--ink) 12%,transparent);--wash:color-mix(in srgb,var(--ink) 5%,transparent);
     position:relative;max-width:720px;margin:0 auto;padding:24px 16px 40px;box-sizing:border-box;color:var(--ink);
     font:14px/1.6 var(--font-sans,system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif)}
@@ -41,7 +43,7 @@
 
   .er .veil{position:fixed;inset:0;background:#0006;z-index:10}
   .er .sheet{position:absolute;z-index:11;left:50%;transform:translateX(-50%);width:min(560px,calc(100% - 24px));
-    background:var(--popover,var(--background,#fff));color:var(--ink);border-radius:12px;padding:20px 22px;box-shadow:0 16px 48px #0004;
+    background:var(--popover,var(--background,var(--er-bg)));color:var(--ink);border-radius:12px;padding:20px 22px;box-shadow:0 16px 48px #0004;
     overflow:auto;overscroll-behavior:contain}
   .er .sheet .x{float:right;font-size:20px;line-height:1;padding:2px 6px;margin:-4px -6px 0 8px;color:var(--mute)}
   .er .sheet h3{font-size:16px;font-weight:650;margin:2px 0 8px;line-height:1.4}
