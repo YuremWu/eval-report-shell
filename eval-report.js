@@ -101,12 +101,20 @@
   const groupOf = (ticket) => (String(ticket).match(/^[A-Z]+\d+/) || [""])[0];
   const shortGroup = (name) => String(name).split("：")[0];
   const slug = (id) => "run-" + id.replace(/[^A-Za-z0-9-]/g, "");
+  // One decimal, trailing .0 dropped: 2/3 -> 66.7%, 1/2 -> 50%.
+  const pct = (n, total) => (total ? String(Math.round((1000 * n) / total) / 10) : "0") + "%";
+  // Scenario pass rate of one card, when the data carries it.
+  const rateText = (run) => run.rate ? `情境通過 ${run.rate.passed}／${run.rate.total} · ${pct(run.rate.passed, run.rate.total)}` : null;
 
   const statuses = {
     passed: { label: "通過", color: "var(--er-pass)" },
     failed: { label: "不通過", color: "var(--er-fail)" },
     unknown: { label: "無法判定", color: "var(--er-warn)" },
   };
+
+  function useLabels(data) {
+    for (const [k, v] of Object.entries(data.status_labels || {})) if (statuses[k]) statuses[k].label = v;
+  }
 
   function previewPanel(root, data) {
     let trigger, timer, pinned = false;
@@ -237,6 +245,17 @@
   const bubble = (side, who, kids, extra = "") =>
     el("div", { class: `msg ${side} ${extra}` }, [el("div", { class: "who" }, who), el("div", { class: "bubble" }, kids)]);
 
+  // A scenario can carry several scoring rows; show it once, with its worst verdict.
+  function worstByScene(verdicts) {
+    const rank = (v) => (v.includes("不通過") ? 2 : v.includes("無法") ? 1 : 0);
+    const byScene = new Map();
+    for (const v of verdicts) {
+      const prev = byScene.get(v.scene);
+      if (!prev || rank(v.verdict) > rank(prev.verdict)) byScene.set(v.scene, v);
+    }
+    return [...byScene.values()];
+  }
+
   function runCard(run, data, status = "failed") {
     const byTurn = {};
     const misses = [];
@@ -253,11 +272,12 @@
     const left = el("div", { class: "left" }, [
       el("div", { class: "name" }, [groupName ? el("span", { class: "grp", title: groupName, text: `${group} ${shortGroup(groupName)}` }) : null, run.title || run.ticket]),
       el("div", { class: "why", text: run.headline || "" }),
-      el("div", { class: "chips" }, (run.verdicts || []).map((v) =>
+      el("div", { class: "chips" }, worstByScene(run.verdicts || []).map((v) =>
         el("span", { class: "chip " + (v.verdict.includes("不通過") ? "fail" : v.verdict.includes("無法") ? "unk" : "pass"), text: v.scene }))),
     ]);
     const right = el("div", { class: "right" }, [
-      el("div", { class: "score", text: run.score == null ? statuses[status].label : "這次 score " + run.score }),
+      el("div", { class: "score", text: rateText(run) || (run.score == null ? statuses[status].label : "這次 score " + run.score) }),
+      run.rate ? el("div", { class: "stat", text: `門檻 ${pct(run.rate.threshold, 1)} · ${statuses[status].label}` + (run.score == null ? "" : ` · 原始 score ${run.score}`) }) : null,
       st ? el("div", { class: "stat" }, ["這張卡歷次 ", el("b", { text: `${st.passed}/${st.runs}` }), ` 通過 · ${Math.round((100 * st.passed) / st.runs)}%`]) : null,
       trend.length > 1 ? el("div", { class: "spark" }, sparkline(trend, trend.findIndex((t) => t.id === data.batch.id))) : null,
     ]);
@@ -300,6 +320,7 @@
   }
 
   function render(data) {
+    useLabels(data);
     const b = data.batch;
     const unknown = b.unknown || 0;
     const failed = b.failed ?? b.runs - b.passed - unknown;
@@ -312,8 +333,8 @@
         el("div", { class: "hole" }, [el("div", { class: "pct", text: (b.runs ? Math.round((100 * b.passed) / b.runs) + "%" : "—") }), el("div", { class: "of", text: `${b.passed} / ${b.runs}` })])]),
       el("div", { class: "legend" }, [
         el("div", { class: "title", text: b.label }),
-        el("div", { class: "row" }, parts.map(p => bindPreview(el("span", {}, [el("span", { class: "dot", style: `background:${p.color}` }), `${p.label} ${p.n}`]), p.status, "", p.n))),
-        el("div", { class: "fails" }, (data.runs || []).map((r) => el("a", { href: "#" + slug(r.run_id) }, [r.ticket, el("b", { text: r.score })]))),
+        el("div", { class: "row" }, parts.map(p => bindPreview(el("span", {}, [el("span", { class: "dot", style: `background:${p.color}` }), `${p.label} ${p.n}（${pct(p.n, b.runs)}）`]), p.status, "", p.n))),
+        el("div", { class: "fails" }, (data.runs || []).map((r) => el("a", { href: "#" + slug(r.run_id) }, [r.ticket, el("b", { text: r.rate ? pct(r.rate.passed, r.rate.total) : r.score })]))),
         el("div", { class: "sub", text: `${b.criterion || "門檻 score ≥ 0.8"} · 資料：${data.source} · ${data.generated_at}` }),
       ]),
     ]));
@@ -324,15 +345,17 @@
         const stats = (data.group_stats || {})[g];
         if (!stats) { grid.append(el("p", { text: `${g} · ${name}（缺少分組統計）` })); continue; }
         const total = (stats.passed || 0) + (stats.failed || 0) + (stats.unknown || 0);
-        grid.append(el("div", { class: "barrow" }, [el("span", { text: `${g} · ${name} · ${total} 筆` }),
+        const sc = stats.scenarios;
+        const head = `${g} · ${name} · ${total} 筆` + (sc ? ` · 情境通過 ${sc.passed}／${sc.total}（${pct(sc.passed, sc.total)}）` : "");
+        grid.append(el("div", { class: "barrow" }, [el("span", { text: head }),
           el("div", { class: "bar" }, Object.entries(statuses).filter(([status]) => stats[status] > 0).map(([status, info]) =>
-            bindPreview(el("button", { class: "segment", type: "button", text: stats[status], style: `background:${info.color};flex:${stats[status]}` }), status, g, stats[status])))
+            bindPreview(el("button", { class: "segment", type: "button", text: `${stats[status]} · ${pct(stats[status], total)}`, style: `background:${info.color};flex:${stats[status]}` }), status, g, stats[status])))
         ]));
       }
       root.append(el("section", {}, [el("h2", { text: "卡片分類與結果分布" }), grid,
         data.groups_note ? el("div", { class: "sub", text: data.groups_note }) : null]));
     }
-    root.append(el("h2", { text: `沒過的 run · ${(data.runs || []).length}` }));
+    root.append(el("h2", { text: `${statuses.failed.label}的卡片 · ${(data.runs || []).length}` }));
     for (const r of data.runs || []) root.append(runCard(r, data));
     for (const [key, status] of [["unknown_runs", "unknown"], ["passed_runs", "passed"]]) {
       const rows = data[key] || [];

@@ -1,13 +1,17 @@
 # eval-report-shell
 
-An optional renderer for Tiger Bot Eval batch reports. GPT may also write its own
-layout. A report can use JSON and a commit-pinned script, or inline the script for
-offline sharing:
+A fixed renderer for Tiger Bot Eval batch reports. Report generation writes the
+data as JSON and loads this script at a pinned commit. The report data stays in
+the HTML file; this repository contains no report data.
 
 ```html
 <script type="application/json" id="eval-report">{ ...report data... }</script>
-<script src="https://cdn.jsdelivr.net/gh/YuremWu/eval-report-shell@<commit>/eval-report.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/YuremWu/eval-report-shell@<commit>/eval-report.js" integrity="sha384-<digest>" crossorigin="anonymous"></script>
 ```
+
+Pin both the full commit and the SHA-384 digest. The report cannot render without
+network access to the CDN. Keep the HTML and its JSON private when they contain
+company data.
 
 The renderer keeps one overall donut, group bars, transcripts and source links.
 Click donut segments to pin their panel; crossing other segments does not switch
