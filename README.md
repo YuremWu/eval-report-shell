@@ -13,7 +13,10 @@ Pin both the full commit and the SHA-384 digest. The report cannot render withou
 network access to the CDN. Keep the HTML and its JSON private when they contain
 company data.
 
-The renderer keeps one overall donut, group bars, transcripts and source links.
+The renderer draws one overall donut, group bars, a table that lists every card
+with its title, one mark per scenario and its pass rate, then the evidence for
+each card that missed its threshold. Status colors pass a palette validator on
+light and dark surfaces; every status also carries a label or a shape.
 Click donut segments to pin their panel; crossing other segments does not switch
 it. Click another segment to switch, or dismiss outside / with Escape.
 Group bars retain hover: red shows failed quotes and reasons, green the first

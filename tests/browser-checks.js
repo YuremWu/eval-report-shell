@@ -5,7 +5,7 @@ window.checkEvalReport = async function () {
   const green = document.querySelector('.barrow [data-preview="passed"]');
   green.dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'}));
   check('first three passed cases', panel.querySelectorAll('.preview').length === 3);
-  check('preview count differs from total', panel.querySelector('h3').textContent.includes('5 筆'));
+  check('preview count differs from total', panel.querySelector('h3').textContent.includes('5 張'));
   check('source data order', [...panel.querySelectorAll('.preview b')].map(n => n.textContent).join(',') === 'Passed 1,Passed 2,Passed 3');
   green.dispatchEvent(new PointerEvent('pointerleave', {pointerType: 'mouse'}));
   panel.dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'}));
@@ -25,8 +25,10 @@ window.checkEvalReport = async function () {
   check('Escape closes and restores focus', panel.hidden && document.activeElement === green);
   document.querySelector('.barrow [data-preview="unknown"]').click();
   check('unknown stays separate', panel.querySelector('h3').textContent.includes('無法判定'));
-  check('unknown uses warning color', getComputedStyle(document.querySelector('.run.unknown')).getPropertyValue('--er-fail').trim() === getComputedStyle(document.documentElement).getPropertyValue('--er-warn').trim());
+  check('unknown uses warning color', getComputedStyle(document.querySelector('.run.unknown')).getPropertyValue('--tone').trim() === getComputedStyle(document.documentElement).getPropertyValue('--er-warn').trim());
   check('one donut', document.querySelectorAll('.donut').length === 1);
+  check('every card is listed with its title', document.querySelectorAll('.cardrow').length === 7 && [...document.querySelectorAll('.cardrow .title')].every(n => n.textContent.trim()));
+  check('bar notes carry percentages', [...document.querySelectorAll('.barnote span')].some(n => n.textContent.includes('71.4%')));
   check('mismatched quote is not marked', ![...document.querySelectorAll('mark')].some(n => n.textContent === 'Fabricated quote'));
   check('mismatch is disclosed', document.querySelector('.miss')?.textContent.includes('Fabricated quote'));
   const yellowArc = document.querySelector('.donut [data-preview="unknown"]');
