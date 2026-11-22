@@ -49,6 +49,17 @@
   .er .sheet h3{font-size:16px;font-weight:650;margin:2px 0 8px;line-height:1.4}
   .er .sheet .meter{display:grid;grid-template-columns:96px auto 1fr;gap:12px;align-items:center}
   .er .scene{margin-top:18px}
+  .er details.scene{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+  .er details.scene>summary{cursor:pointer;font-size:13px;font-weight:600;display:flex;gap:8px;align-items:center;list-style:none}
+  .er details.scene>summary::-webkit-details-marker{display:none}
+  .er details.scene>summary .tag{margin-left:auto;font-size:12px;font-weight:400;color:var(--mute)}
+  .er .k{font-size:11px;font-weight:600;color:var(--mute);margin:8px 0 2px}
+  .er ul.crit{margin:0;padding-left:18px;font-size:13px;line-height:1.55}
+  .er .comp{display:grid;grid-template-columns:3em minmax(6em,32%) 1fr;gap:3px 10px;font-size:13px;line-height:1.5;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
+  .er .comp .ch{font-size:11px;color:var(--mute);font-weight:600}.er .comp .ck{font-weight:600}
+  .er .comp .req{font-weight:600}.er .comp .unset{color:var(--mute)}
+  .er details.guide{margin:10px 0 4px;font-size:13px;line-height:1.6}.er details.guide summary{cursor:pointer;color:var(--mute)}
+  .er details.guide ul{margin:6px 0 0;padding-left:18px}
   .er .scene h4{margin:0 0 6px;font-size:13px;font-weight:600;display:flex;gap:8px;align-items:center}
   .er .line{display:grid;grid-template-columns:2.4em 1fr;gap:0 10px;padding:1px 0}
   .er .line span:first-child{color:var(--mute);font-size:12px;padding-top:2px}
@@ -80,6 +91,7 @@
   const verdictStatus = (text) => (String(text).includes("不通過") ? "failed" : String(text).includes("無法") ? "unknown" : "passed");
   const sceneName = (scene) => String(scene).replace(/^\d+\s*/, "") || String(scene);
   const labels = { passed: "通過", failed: "不通過", unknown: "無法判定" };
+  const sceneLabels = { passed: "通過", failed: "不通過", unknown: "無法判定" };
 
   /** Scoring rows that share a leading number are one scenario; the worst verdict wins. */
   function scenarios(run) {
@@ -116,7 +128,7 @@
     const list = scenarios(run);
     const rate = run.rate || { passed: 0, total: 0 };
     const exact = list.length === rate.total && list.filter((s) => s.status === "passed").length === rate.passed;
-    const parts = exact ? list.map((s) => ({ status: s.status, title: `${s.name}：${labels[s.status]}` }))
+    const parts = exact ? list.map((s) => ({ status: s.status, title: `${s.name}：${sceneLabels[s.status]}` }))
       : Array.from({ length: rate.total }, (_, i) => ({ status: i < rate.passed ? "passed" : "failed", title: "" }));
     return el("span", { class: "bar" }, parts.map((p) => el("i", { class: p.status, title: p.title })));
   }
@@ -170,6 +182,27 @@
         el("div", { class: "line" }, [el("span", { text: "孩子" }), el("span", { text: t.child })]),
         el("div", { class: "line" }, [el("span", { text: "巧虎" }), el("span", {}, markText(t.tiger, (byTurn[t.i] || []).map((h) => h.quote)))]),
       ];
+      // scene_details: every scenario with its acceptance criteria, reply composition and its own dialogue.
+      if ((run.scene_details || []).length) {
+        const comp = (c) => el("div", { class: "comp" }, [
+          ...["項目", "標準", "巧虎實際說的"].map((h) => el("span", { class: "ch", text: h })),
+          ...c.rows.flatMap((r) => [el("span", { class: "ck", text: r.k }), el("span", { class: "cs" + (r.unset ? " unset" : r.req ? " req" : ""), text: r.standard }),
+            el("span", { class: "cg" + (r.got ? "" : " unset"), text: r.got || "沒有" })]),
+          ...(c.conditions || []).flatMap((x) => [el("span", { class: "ck", text: "條件" }), el("span", { class: "cs", text: x.when }), el("span", { class: "cg", text: "→ " + x.then })]),
+        ]);
+        const secs = run.scene_details.map((d) => el("details", { class: "scene " + d.status, ...(d.status === "passed" ? {} : { open: "" }) }, [
+          el("summary", {}, [el("span", { class: "dot" }), `情境 ${d.key}　${d.name}`, el("span", { class: "tag", text: sceneLabels[d.status] })]),
+          el("div", { class: "k", text: "驗收標準" }), el("ul", { class: "crit" }, d.criteria.map((c) => el("li", { text: c }))),
+          ...(d.normal ? [el("div", { class: "k", text: "應有的回應" }), el("div", { class: "why", text: d.normal })] : []),
+          ...(d.composition ? [el("div", { class: "k", text: "回覆組成" }), comp(d.composition)] : []),
+          el("div", { class: "k", text: d.story ? `對話（故事《${d.story}》）` : "對話" }),
+          ...d.turns.map((i) => run.turns.find((t) => t.i === i)).filter(Boolean).flatMap(exchange),
+        ]));
+        // Opening or closing a scenario changes the sheet height: re-place it so it stays inside the viewport.
+        for (const d of secs) d.addEventListener("toggle", () => place());
+        const source = run.report_url && /^https?:/.test(run.report_url) ? el("a", { href: run.report_url, target: "_blank", rel: "noopener", text: "原始報告" }) : null;
+        return [...secs, ...missed, el("div", { class: "foot" }, source)];
+      }
       const scenes = scenarios(run).filter((s) => s.status !== "passed").map((s) => {
         const hits = (run.highlights || []).filter((h) => s.scenes.includes(h.rule) && byTurn[h.turn]?.includes(h));
         const turns = [...new Set(hits.map((h) => h.turn))].map((i) => run.turns.find((t) => t.i === i));
@@ -221,6 +254,9 @@
 
     // ---- layer 1 -------------------------------------------------------
     root.append(el("h1", { text: b.label }), el("div", { class: "sub", text: [String(b.label).includes(data.generated_at) ? null : data.generated_at, `${b.runs} 張卡`].filter(Boolean).join(" · ") }));
+    // Optional reading guide, folded by default.
+    if ((data.guide || []).length) root.append(el("details", { class: "guide" }, [el("summary", { text: "怎麼讀這份報告" }),
+      el("ul", {}, data.guide.map((g) => el("li", { text: g })))]));
 
     const r = 46, c = 2 * Math.PI * r;
     const svg = el("svg", { viewBox: "0 0 104 104" }, el("circle", { cx: 52, cy: 52, r, fill: "none", stroke: "var(--line)", "stroke-width": 10 }));

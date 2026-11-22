@@ -33,6 +33,15 @@ unmarked and are listed as mismatches. The skill holds the complete data shape.
 This public repository holds no report data. See `docs/planning/eval-report-hover.md`
 in TheKeeper-ai/tiger-bot-test-eval for the approved change and acceptance scenarios.
 
+Optional `scene_details` on a run lists every scenario in order: `key`, `name`,
+`status`, `criteria` (acceptance text), `normal` (expected plain answer, if any),
+`composition` (`rows` of `{k, standard, got, unset, req}` plus `conditions` of
+`{when, then}`), `story` and `turns` (the turn numbers of that scenario). When it
+is present, the sheet shows each scenario as a section, failed ones open, with its
+criteria, reply composition and its own dialogue; opening a section re-places the
+sheet inside the viewport. Optional `guide` is a list of lines shown as a folded
+"怎麼讀這份報告" note under the title. Reports without these fields render as before.
+
 ## Verification
 
 Serve the repository over HTTP, open `tests/fixture.html` and run
